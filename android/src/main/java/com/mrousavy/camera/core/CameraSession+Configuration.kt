@@ -220,7 +220,20 @@ internal fun CameraSession.configureOutputs(configuration: CameraConfiguration) 
   val codeScannerConfig = configuration.codeScanner as? CameraConfiguration.Output.Enabled<CameraConfiguration.CodeScanner>
   if (codeScannerConfig != null) {
     Log.i(CameraSession.TAG, "Creating CodeScanner output...")
-    val analyzer = ImageAnalysis.Builder().build()
+    val analyzer = ImageAnalysis.Builder().also { analysis ->
+      // ML Kit docs: "Be sure that backpressure strategy is set to STRATEGY_KEEP_ONLY_LATEST"
+      // This drops old frames and always analyzes the most recent one
+      analysis.setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+      // ML Kit docs: "1280x720 or 1920x1080" recommended for barcode scanning
+      // 1280x720 is the sweet spot — enough pixels for QR codes without excess latency
+      val resolutionSelector = ResolutionSelector.Builder()
+        .forSize(android.util.Size(1280, 720))
+        .setAllowedResolutionMode(ResolutionSelector.PREFER_CAPTURE_RATE_OVER_HIGHER_RESOLUTION)
+        .build()
+      analysis.setResolutionSelector(resolutionSelector)
+      // YUV_420_888 is ML Kit's preferred input format
+      analysis.setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+    }.build()
     val pipeline = CodeScannerPipeline(codeScannerConfig.config, callback, this)
     analyzer.setAnalyzer(CameraQueues.analyzerExecutor, pipeline)
     codeScannerOutput = analyzer
