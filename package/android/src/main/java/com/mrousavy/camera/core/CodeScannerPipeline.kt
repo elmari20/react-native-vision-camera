@@ -23,6 +23,7 @@ class CodeScannerPipeline(val configuration: CameraConfiguration.CodeScanner, va
     val types = configuration.codeTypes.map { it.toBarcodeType() }
     val barcodeScannerOptions = BarcodeScannerOptions.Builder()
       .setBarcodeFormats(types[0], *types.toIntArray())
+      .enableAllPotentialBarcodes()
       .build()
     scanner = BarcodeScanning.getClient(barcodeScannerOptions)
   }
