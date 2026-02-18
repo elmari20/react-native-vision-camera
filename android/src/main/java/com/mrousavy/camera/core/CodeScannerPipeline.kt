@@ -8,10 +8,15 @@ import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.ZoomSuggestionOptions
 import com.google.mlkit.vision.common.InputImage
 import java.io.Closeable
 
-class CodeScannerPipeline(val configuration: CameraConfiguration.CodeScanner, val callback: CameraSession.Callback) :
+class CodeScannerPipeline(
+  val configuration: CameraConfiguration.CodeScanner,
+  val callback: CameraSession.Callback,
+  val cameraSession: CameraSession
+) :
   Closeable,
   Analyzer {
   companion object {
@@ -21,9 +26,29 @@ class CodeScannerPipeline(val configuration: CameraConfiguration.CodeScanner, va
 
   init {
     val types = configuration.codeTypes.map { it.toBarcodeType() }
+
+    val zoomCallback = ZoomSuggestionOptions.ZoomCallback { zoomRatio ->
+      try {
+        val camera = cameraSession.camera ?: return@ZoomCallback false
+        camera.cameraControl.setZoomRatio(zoomRatio)
+        Log.i(TAG, "ML Kit auto-zoom applied: ${zoomRatio}x")
+        true
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to apply auto-zoom", e)
+        false
+      }
+    }
+
+    val maxZoom = cameraSession.camera?.cameraInfo?.zoomState?.value?.maxZoomRatio ?: 8f
+
     val barcodeScannerOptions = BarcodeScannerOptions.Builder()
       .setBarcodeFormats(types[0], *types.toIntArray())
       .enableAllPotentialBarcodes()
+      .setZoomSuggestionOptions(
+        ZoomSuggestionOptions.Builder(zoomCallback)
+          .setMaxSupportedZoomRatio(maxZoom)
+          .build()
+      )
       .build()
     scanner = BarcodeScanning.getClient(barcodeScannerOptions)
   }

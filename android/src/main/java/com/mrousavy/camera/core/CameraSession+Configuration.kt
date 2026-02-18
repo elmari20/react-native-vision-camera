@@ -221,7 +221,7 @@ internal fun CameraSession.configureOutputs(configuration: CameraConfiguration) 
   if (codeScannerConfig != null) {
     Log.i(CameraSession.TAG, "Creating CodeScanner output...")
     val analyzer = ImageAnalysis.Builder().build()
-    val pipeline = CodeScannerPipeline(codeScannerConfig.config, callback)
+    val pipeline = CodeScannerPipeline(codeScannerConfig.config, callback, this)
     analyzer.setAnalyzer(CameraQueues.analyzerExecutor, pipeline)
     codeScannerOutput = analyzer
   } else {
